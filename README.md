@@ -71,7 +71,6 @@ streamlit run app.py
 ## 👨‍💻 Authors
 - Kanav Singla (2023UCD3014)
 - Utkarsh Dubey (2023UCD3059)
-- Lalit Jorwal (2023UCD2153)
 
 ---
 
@@ -85,12 +84,6 @@ streamlit run app.py
 
 ## ⚠️ Disclaimer
 > The predictions are for reference only and may not reflect real-time market prices. Use at your own discretion.
-
----
-
-## 🌟 Screenshots
-
-![App Screenshot](https://foyr.com/learn/wp-content/uploads/2021/03/Best-Laptops-and-Computer-for-3D-Modeling-and-Rendering-in-2023.webp)
 
 ---
 
