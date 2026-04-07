@@ -1,91 +1,101 @@
-# 💻 Laptop Price Predictor
+# Laptop Price Predictor - DevOps Edition (Localhost)
 
-An interactive web application that predicts laptop prices based on user-selected specifications using a machine learning model. Built with Streamlit, this project enables users to estimate laptop prices, explore data insights, and understand feature impacts on pricing.
+## Project Overview
 
----
+This is a Streamlit-based ML web app that predicts laptop prices from user-selected specifications. The project has been upgraded with essential DevOps practices for local deployment and academic demonstration.
 
-## 🚀 Features
+## Tech Stack
 
-- **Price Prediction**: Enter laptop specs (brand, RAM, CPU, GPU, storage, etc.) to get an instant price estimate.
-- **Data Exploration**: Visualize price distributions, brand comparisons, and feature importance with interactive charts.
-- **Similar Laptops**: See real examples from the dataset that match your predicted price range.
-- **Modern UI**: Enhanced with custom CSS for a visually appealing and user-friendly experience.
+- Python 3.11
+- Streamlit
+- scikit-learn
+- xgboost
+- pandas, numpy, scipy
+- matplotlib, seaborn
+- Docker
+- GitHub Actions
 
----
+## DevOps Implementation
 
-## 🏗️ Project Structure
+### Docker (Local Containerization)
 
-```
-├── app.py                  # Streamlit web app
-├── create_alternative_model.py  # Script to build a fallback ML model
-├── df.pkl                  # Preprocessed DataFrame (used by app)
-├── laptop_data.csv         # Raw laptop dataset
-├── pipe.pkl                # Main trained ML pipeline
-├── Procfile                # For deployment (e.g., Render, Heroku)
-├── render_setup.sh         # Render deployment setup
-├── requirements.txt        # Python dependencies
-├── setup.sh                # Environment setup script
-├── update_app_model.py     # Script to update/patch the app model
-```
+- Added a Dockerfile for localhost execution.
+- App runs on port 8501 inside the container.
+- Added .dockerignore to reduce build context size.
 
----
+### CI/CD (GitHub Actions)
 
-## 🖥️ Usage
+- Added workflow at .github/workflows/main.yml.
+- Pipeline steps:
+  - Checkout code
+  - Setup Python 3.11
+  - Install dependencies
+  - Run smoke test
+  - Build Docker image for validation (no push)
 
-### 1. **Install Requirements**
+## How To Run Locally
+
+### Normal Run (Without Docker)
+
 ```bash
 pip install -r requirements.txt
-```
-
-### 2. **Run the App Locally**
-```bash
 streamlit run app.py
 ```
 
-### 3. **Web Interface**
-- Open your browser at [http://localhost:8501](http://localhost:8501)
-- Use the sidebar to navigate between:
-  - **Predict Price**: Input specs and get a price prediction
-  - **Explore Data**: Visualize price trends, brand stats, and feature impacts
-  - **About**: Learn about the app, model, and team
+Open: <http://localhost:8501>
 
----
+## Deploy Online (Easiest Way)
 
-## 📊 Data & Model
-- **Dataset**: `laptop_data.csv` (over 1,300 laptops, various brands and specs)
-- **Features Used**: Brand, Type, RAM, Storage (HDD/SSD), CPU, GPU, Screen Size, Resolution, OS, Weight, Touchscreen, IPS
-- **Model**: Trained regression pipeline (scikit-learn, OneHotEncoder, RandomForest/GradientBoosting)
-- **Performance**: R² ≈ 0.86 (explains ~86% of price variance)
+Use Streamlit Community Cloud.
 
----
+1. Push this repo to GitHub.
+2. Sign in to Streamlit Community Cloud.
+3. Select this repository and set `app.py` as the main file.
+4. Deploy using `requirements.txt` and `runtime.txt`.
+5. Share the public URL once deployment completes.
 
-## 🛠️ Deployment
-- **Procfile** and **setup.sh** provided for easy deployment on Render, Heroku, or similar platforms.
-- Example Render build command:
-  ```sh
-  sh setup.sh && streamlit run app.py
-  ```
+Notes:
 
----
+- Docker is not required for this route.
+- `runtime.txt` pins Python 3.11 for better compatibility.
+- If a package mismatch appears, update `requirements.txt` and redeploy.
 
-## 👨‍💻 Authors
-- Kanav Singla (2023UCD3014)
-- Utkarsh Dubey (2023UCD3059)
+### Docker Run
 
----
+```bash
+docker build -t laptop-price-predictor .
+docker run --rm -p 8501:8501 laptop-price-predictor
+```
 
-## 📚 Technologies Used
-- Streamlit
-- scikit-learn
-- pandas, numpy
-- matplotlib, seaborn
+Open: <http://localhost:8501>
 
----
+## Final Clean Structure
 
-## ⚠️ Disclaimer
-> The predictions are for reference only and may not reflect real-time market prices. Use at your own discretion.
+```text
+.
+|-- .github/
+|   `-- workflows/
+|       `-- main.yml
+|-- .dockerignore
+|-- Dockerfile
+|-- README.md
+|-- VIVA_QA.md
+|-- app.py
+|-- requirements.txt
+|-- df.pkl
+|-- pipe.pkl
+|-- pipe_no_xgb.pkl
+|-- laptop_data.csv
+|-- create_alternative_model.py
+|-- update_app_model.py
+`-- jupyter-nb-python-conversion.py
+```
 
----
+## Notes
 
-## 📄 License
-This project is for educational purposes.
+- This project is localhost-only by design.
+- No cloud deployment or Kubernetes is used.
+
+## License
+
+Educational use only.

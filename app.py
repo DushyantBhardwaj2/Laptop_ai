@@ -1,7 +1,10 @@
 # Import necessary libraries
 import streamlit as st
 import pickle
+import io
+import builtins
 import numpy as np
+import numpy.random._pickle as np_random_pickle
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -9,6 +12,17 @@ from PIL import Image
 import base64
 import time
 import math
+
+if not hasattr(np_random_pickle, "_orig_bit_generator_ctor"):
+    np_random_pickle._orig_bit_generator_ctor = np_random_pickle.__bit_generator_ctor
+
+ORIGINAL_BIT_GENERATOR_CTOR = np_random_pickle._orig_bit_generator_ctor
+
+
+def compat_bit_generator_ctor(bit_generator_name):
+    if isinstance(bit_generator_name, builtins.type):
+        bit_generator_name = bit_generator_name.__name__
+    return ORIGINAL_BIT_GENERATOR_CTOR(bit_generator_name)
 
 # Set page configuration with a laptop emoji as favicon
 st.set_page_config(
@@ -103,11 +117,41 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Load data and models with caching for better performance
-@st.cache_data
+class NumpyCompatUnpickler(pickle.Unpickler):
+    """Remap NumPy internal module paths for older/newer pickle compatibility."""
+
+    def find_class(self, module, name):
+        if module.startswith("numpy._core"):
+            module = module.replace("numpy._core", "numpy.core", 1)
+        return super().find_class(module, name)
+
+
+def compat_pickle_load(path):
+    # Support pickles that store RNG bit generators as classes instead of names.
+    if np_random_pickle.__bit_generator_ctor is not compat_bit_generator_ctor:
+        np_random_pickle.__bit_generator_ctor = compat_bit_generator_ctor
+
+    with open(path, "rb") as file_obj:
+        try:
+            # Prefer native unpickling when runtime versions match the model.
+            return pickle.load(file_obj)
+        except ModuleNotFoundError as error:
+            if "numpy._core" not in str(error):
+                raise
+            file_obj.seek(0)
+            data = file_obj.read()
+            return NumpyCompatUnpickler(io.BytesIO(data)).load()
+
+
+@st.cache_resource
 def load_data():
     # Load our trained pipeline and dataset
-    pipe = pickle.load(open('pipe.pkl', 'rb'))
-    df = pickle.load(open('df.pkl', 'rb'))
+    try:
+        pipe = compat_pickle_load('pipe.pkl')
+    except Exception:
+        # Fallback model trained for compatibility with current dependency stack.
+        pipe = compat_pickle_load('pipe_no_xgb.pkl')
+    df = compat_pickle_load('df.pkl')
     return pipe, df
 
 pipe, df = load_data()
@@ -128,14 +172,14 @@ with st.sidebar:
     
     # Navigation options using radio buttons
     st.markdown("### Navigation")
-    app_mode = st.radio("", ["Predict Price", "Explore Data", "About"])
+    app_mode = st.radio("Navigation Menu", ["Predict Price", "Explore Data", "About"], label_visibility="collapsed")
     
     # Additional information section
     st.markdown("---")
     st.markdown("### Created By")
     st.markdown("Kanav Singla (2023UCD3014)  \n"
                 "Utkarsh Dubey (2023UCD3059)  \n"
-                "Lalit Jorwal(2023UCD2153)")
+                "Dushyant Bhardwaj (2023UCD2163)")
     st.markdown("---")
     st.markdown("#### How it works")
     st.info("This app uses machine learning techniques to predict laptop prices based on specifications. The model was trained on a dataset of laptop prices and features.")
@@ -162,7 +206,7 @@ if app_mode == "Predict Price":
         company = st.selectbox('Brand', df['Company'].unique())
         
         # Type of laptop dropdown
-        type = st.selectbox('Type', df['TypeName'].unique())
+        laptop_type = st.selectbox('Type', df['TypeName'].unique())
         
         # RAM amount selection
         ram = st.selectbox('RAM (in GB)', [2, 4, 6, 8, 12, 16, 24, 32, 64])
@@ -171,10 +215,10 @@ if app_mode == "Predict Price":
         weight = st.number_input('Weight of the Laptop (kg)', min_value=0.5, max_value=5.0, value=1.5, step=0.1)
         
         # Touchscreen toggle for yes/no selection
-        touchscreen = st.toggle('Touchscreen')
+        touchscreen = st.checkbox('Touchscreen')
         
         # IPS display toggle
-        ips = st.toggle('IPS Display')
+        ips = st.checkbox('IPS Display')
     
     with col2:
         st.markdown("<h3 class='sub-header'>Display & Performance</h3>", unsafe_allow_html=True)
@@ -232,15 +276,20 @@ if app_mode == "Predict Price":
             X_res = int(resolution.split('x')[0])
             Y_res = int(resolution.split('x')[1])
             ppi = ((X_res**2) + (Y_res**2))**0.5/screen_size
+
+            # Normalize text fields before prediction input construction.
+            company_clean = preprocess_text_input(company)
+            type_clean = preprocess_text_input(laptop_type)
+            cpu_clean = preprocess_text_input(cpu)
+            gpu_clean = preprocess_text_input(gpu)
+            os_clean = preprocess_text_input(os)
             
             # Create the query array for prediction
-            query = np.array([company, type, ram, weight, touchscreen, ips, ppi, cpu, hdd, ssd, gpu, os])
+            query = np.array([
+                company_clean, type_clean, ram, weight, touchscreen, ips,
+                ppi, cpu_clean, hdd, ssd, gpu_clean, os_clean
+            ])
             query = query.reshape(1, 12)
-            
-            # Apply preprocessing to string inputs
-            for col in query.columns:
-                if query[col].dtype == 'object':
-                    query[col] = query[col].apply(preprocess_text_input)
             
             try:
                 # Make prediction with error handling
@@ -264,7 +313,7 @@ if app_mode == "Predict Price":
                         <strong>Brand</strong><br>{company}
                     </div>
                     <div class="spec-item">
-                        <strong>Type</strong><br>{type}
+                        <strong>Type</strong><br>{laptop_type}
                     </div>
                     <div class="spec-item">
                         <strong>RAM</strong><br>{ram} GB
@@ -293,7 +342,7 @@ if app_mode == "Predict Price":
                 </div>
             </div>
             """.format(
-                company=company, type=type, ram=ram, weight=weight,
+                company=company, laptop_type=laptop_type, ram=ram, weight=weight,
                 screen_size=screen_size, resolution=resolution,
                 cpu=cpu, gpu=gpu, hdd=hdd, ssd=ssd, os=os
             ), unsafe_allow_html=True)
@@ -310,16 +359,27 @@ if app_mode == "Predict Price":
                 
                 # Display each similar laptop in an expandable section
                 for i, row in similar_price_laptops.iterrows():
-                    with st.expander(f"{row['Company']} - {row['TypeName']} (${row['Price']:,.2f})"):
+                    company_val = row.get('Company', 'Unknown')
+                    type_val = row.get('TypeName', 'Unknown')
+                    price_val = row.get('Price', 0)
+                    cpu_val = row.get('Cpu brand', row.get('Cpu', 'N/A'))
+                    ram_val = row.get('Ram', row.get('RAM', 'N/A'))
+                    hdd_val = row.get('HDD', 0)
+                    ssd_val = row.get('SSD', 0)
+                    gpu_val = row.get('Gpu brand', row.get('Gpu', 'N/A'))
+                    screen_val = row.get('Inches', row.get('Screen Size', row.get('ScreenSize', 'N/A')))
+                    os_val = row.get('os', row.get('OS', 'N/A'))
+
+                    with st.expander(f"{company_val} - {type_val} (${price_val:,.2f})"):
                         spec_col1, spec_col2 = st.columns(2)
                         with spec_col1:
-                            st.write(f"**CPU:** {row['Cpu brand']}")
-                            st.write(f"**RAM:** {row['Ram']} GB")
-                            st.write(f"**Storage:** HDD {row.get('HDD', 0)} GB, SSD {row.get('SSD', 0)} GB")
+                            st.write(f"**CPU:** {cpu_val}")
+                            st.write(f"**RAM:** {ram_val} GB")
+                            st.write(f"**Storage:** HDD {hdd_val} GB, SSD {ssd_val} GB")
                         with spec_col2:
-                            st.write(f"**GPU:** {row['Gpu brand']}")
-                            st.write(f"**Screen:** {row['Inches']} inches")
-                            st.write(f"**OS:** {row['os']}")
+                            st.write(f"**GPU:** {gpu_val}")
+                            st.write(f"**Screen:** {screen_val} inches")
+                            st.write(f"**OS:** {os_val}")
 
 elif app_mode == "Explore Data":
     # Data exploration section
