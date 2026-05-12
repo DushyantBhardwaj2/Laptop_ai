@@ -8,6 +8,7 @@ import numpy.random._pickle as np_random_pickle
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
+import plotly.express as px
 from PIL import Image
 import base64
 import time
@@ -411,33 +412,24 @@ elif app_mode == "Explore Data":
             "Ultra Premium (>$2000)": len(df[df['Price'] >= 2000])
         }
         
-        # Define a colorful palette for the pie chart
-        colors = ['#FF9999', '#66B2FF', '#99FF99', '#FFCC99', '#CC99FF']
+        # Create a DataFrame for Plotly
+        df_pie = pd.DataFrame({
+            'Category': list(price_ranges.keys()),
+            'Count': list(price_ranges.values())
+        })
         
-        # Create pie chart for price ranges with explicit colors
-        fig, ax = plt.subplots(figsize=(10, 6))
-        wedges, texts, autotexts = ax.pie(
-            list(price_ranges.values()), 
-            labels=list(price_ranges.keys()), 
-            autopct='%1.1f%%', 
-            startangle=90,
-            colors=colors,
-            explode=[0.05, 0, 0, 0, 0.1]  # Slightly explode the first and last slice
+        # Create Plotly pie chart
+        fig_pie = px.pie(
+            df_pie, 
+            values='Count', 
+            names='Category',
+            color_discrete_sequence=px.colors.sequential.RdBu,
+            hole=0.4,
+            title="Laptop Price Ranges Breakdown"
         )
-        
-        # Enhance text visibility
-        for text in texts:
-            text.set_fontsize(10)
-            text.set_fontweight('bold')
-        
-        for autotext in autotexts:
-            autotext.set_fontsize(9)
-            autotext.set_fontweight('bold')
-            autotext.set_color('white')
-        
-        ax.axis('equal')
-        ax.set_title("Laptop Price Ranges", fontsize=14, fontweight='bold')
-        st.pyplot(fig)
+        fig_pie.update_traces(textposition='inside', textinfo='percent+label')
+        fig_pie.update_layout(margin=dict(l=20, r=20, t=40, b=20))
+        st.plotly_chart(fig_pie, use_container_width=True)
     
     with tab2:
         st.markdown("<h3 class='sub-header'>Brand Comparison</h3>", unsafe_allow_html=True)
@@ -537,36 +529,36 @@ else:  # About section
     # Information about the app and model
     st.markdown("<h1 class='main-header'>About This App</h1>", unsafe_allow_html=True)
     
-    st.markdown("""
-    <div class="highlight">
-        <h3>Laptop Price Predictor</h3>
-        <p>This application uses machine learning to predict laptop prices based on their specifications. 
-        The prediction model is trained on a dataset of various laptop configurations and their market prices.</p>
-        
-        <h3>How It Works</h3>
-        <p>The app uses a trained regression model to predict laptop prices. 
-        The model takes into account various features including:</p>
-        <ul>
-            <li>Brand and type of laptop</li>
-            <li>RAM, storage capacity (HDD/SSD)</li>
-            <li>Processor and graphics card</li>
-            <li>Screen size, resolution, and display features</li>
-            <li>Weight and other physical characteristics</li>
-        </ul>
-        
-        <h3>Model Performance</h3>
-        <p>The prediction model achieves an R² score of approximately 0.86, 
-        which means it can explain about 86% of the variance in laptop prices.</p>
-        
-        <h3>Technologies Used</h3>
-        <ul>
-            <li>Streamlit: For the web application framework</li>
-            <li>Scikit-learn: For machine learning models</li>
-            <li>Pandas & NumPy: For data manipulation</li>
-            <li>Matplotlib & Seaborn: For data visualization</li>
-        </ul>
-    </div>
-    """, unsafe_allow_html=True)
+    st.header("Laptop Price Predictor")
+    st.write("""
+    This application uses machine learning to predict laptop prices based on their specifications. 
+    The prediction model is trained on a dataset of various laptop configurations and their market prices.
+    """)
+    
+    st.subheader("How It Works")
+    st.write("""
+    The app uses a trained regression model to predict laptop prices. 
+    The model takes into account various features including:
+    """)
+    st.info("""
+    - **Brand and type** of laptop
+    - **RAM and storage** capacity (HDD/SSD)
+    - **Processor and graphics** card
+    - **Screen size**, resolution, and display features
+    - **Weight** and other physical characteristics
+    """)
+    
+    st.subheader("Model Performance")
+    st.success("The prediction model achieves an **R² score of approximately 0.86**, which means it can explain about 86% of the variance in laptop prices.")
+    
+    st.subheader("Technologies Used")
+    col_tech1, col_tech2 = st.columns(2)
+    with col_tech1:
+        st.write("- **Streamlit**: Web application framework")
+        st.write("- **Scikit-learn**: Machine learning models")
+    with col_tech2:
+        st.write("- **Pandas & NumPy**: Data manipulation")
+        st.write("- **Matplotlib & Plotly**: Data visualization")
     
     # Add a disclaimer about predictions
     st.markdown("---")
